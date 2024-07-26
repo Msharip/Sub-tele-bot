@@ -13,40 +13,11 @@ const dbConfig = {
   database: process.env.DB_DATABASE,
   port: process.env.DB_PORT,
   waitForConnections: true,  // الانتظار للاتصالات عند الوصول إلى الحد الأقصى
-  connectionLimit: 26,       // الحد الأقصى لعدد الاتصالات في التجمع
+  connectionLimit: 25,       // الحد الأقصى لعدد الاتصالات في التجمع
   queueLimit: 0              // عدم وجود حد لطول قائمة الانتظار
 };
 const token = process.env.TOKEN4;
-const bot = new TelegramBot(token, {
-  polling: {
-    interval: 3000, // فترة الاستطلاع بالمللي ثانية (3 ثواني)
-    autoStart: true,
-    params: {
-      timeout: 10 // مدة المهلة بالثواني
-    }
-  }
-});
-bot.on('polling_error', (error) => {
-  console.error(`Polling error: ${error.message}`);
-  if (error.response && error.response.statusCode === 502) {
-    // في حالة خطأ 502، انتظر لمدة قصيرة قبل إعادة المحاولة
-    setTimeout(() => {
-      bot.startPolling();
-    }, 10000); // إعادة المحاولة بعد 10 ثواني
-  } else if (error.response && error.response.statusCode === 429) {
-    // في حالة خطأ 429، انتظر لمدة أطول قبل إعادة المحاولة
-    const retryAfter = error.response.headers['retry-after'] || 30;
-    setTimeout(() => {
-      bot.startPolling();
-    }, retryAfter * 1000); // إعادة المحاولة بعد الفترة المحددة في retry-after
-  } else {
-    // لأخطاء أخرى، أعد المحاولة بعد فترة قصيرة
-    setTimeout(() => {
-      bot.startPolling();
-    }, 5000); // إعادة المحاولة بعد 5 ثواني
-  }
-});
-
+const bot = new TelegramBot(token, { polling: { interval: 2000 } }); // 2 ثانية
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
 const userClicks = new Map();
@@ -151,7 +122,6 @@ async function deleteActivationCode(connection, code) {
   const deleteQuery = 'DELETE FROM activationcodes WHERE activation_code = ?';
   await connection.execute(deleteQuery, [code]);
 }
-
 const cache = new NodeCache({ stdTTL: 7200 }); // مدة التخزين المؤقت ساعتين (7200 ثانية)
 
 // دالة للتحقق من حالة التفعيل
@@ -161,6 +131,7 @@ async function isUserSubscribed(userId) {
   if (cachedActivation !== undefined) {
     return cachedActivation;
   }
+
   // تحقق من قاعدة البيانات إذا لم تكن الحالة مخزنة
   let connection;
   try {
@@ -221,7 +192,7 @@ bot.onText(/\/start/, async (msg) => {
   const currentTime = new Date().getTime();
   const lastStartTime = rateLimitMap.get(userId) || 0;
   // تحديد فترة السماح بالمللي ثانية (مثلاً 20 ثانية)
-  const timeLimit = 30000;
+  const timeLimit = 20000;
   if (currentTime - lastStartTime < timeLimit) {
     bot.sendMessage(chatId, '⚠️ تجنب ارسال امر - /start - متكرر\n\n تم ايقاف الامر موقتا لمده من الوقت');
     return;
