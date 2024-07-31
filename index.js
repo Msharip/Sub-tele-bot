@@ -18,15 +18,21 @@ const dbConfig = {
   queueLimit: 0              // عدم وجود حد لطول قائمة الانتظار
 };
 const token = process.env.TOKEN4;
-const bot = new TelegramBot(token, {
-  polling: {
-    interval: 3000, // فترة الاستطلاع بالمللي ثانية (3 ثواني)
-    autoStart: true,
-    params: {
-      timeout: 10 // مدة المهلة بالثواني
+let bot;
+if (!global.bot) {
+  bot = new TelegramBot(token, {
+    polling: {
+      interval: 2000, // فترة الاستطلاع بالمللي ثانية (2 ثواني)
+      autoStart: true,
+      params: {
+        timeout: 10 // مدة المهلة بالثواني
+      }
     }
-  }
-});
+  });
+  global.bot = bot;
+} else {
+  bot = global.bot;
+}
 bot.on('polling_error', (error) => {
   console.error(`Polling error: ${error.message}`);
   if (error.response && error.response.statusCode === 502) {
