@@ -1,4 +1,3 @@
-const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const mysql = require('mysql2/promise');
 const cron = require('node-cron');
@@ -17,6 +16,7 @@ const dbConfig = {
   connectionLimit: 26,       // الحد الأقصى لعدد الاتصالات في التجمع
   queueLimit: 0              // عدم وجود حد لطول قائمة الانتظار
 };
+
 const token = process.env.TOKEN4;
 let bot;
 if (!global.bot) {
@@ -647,8 +647,4 @@ async function deleteOldNotifications() {
 // استدعاء وظيفة حذف الإشعارات القديمة بشكل دوري (كل 24 ساعة)
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
 
-const app = express();
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+console.log("Bot is running");
