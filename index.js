@@ -52,6 +52,7 @@ const userClicks = new Map();
 const rateLimitMap = new Map();
 const userSubscriptions = new Map();
 const userMessagesCache = new NodeCache({ stdTTL: 86400 });
+const temporaryMessages = new Map(); // لتخزين الرسائل المؤقتة
 
 async function deleteActivationCode(connection, code, userId) {
   const insertQuery = `
@@ -92,7 +93,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
       await connection.execute(insertQuery, [userId, true, `${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}`, startDate, expiryDate.format('YYYY-MM-DD')]);
       await deleteActivationCode(connection, code, userId);
       await connection.commit();
-      callback(`**تم تفعيل اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.** 🎉`);
+      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.** 🎉`);
     }
 
     await connection.execute('UPDATE users SET activated = true WHERE id = ?', [userId]);
@@ -101,7 +102,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
   } catch (err) {
     if (connection) await connection.rollback();
     console.error('Error activating subscription:', err);
-    callback('⚠️ حدث خطأ أثناء تفعيل الاشتراك.');
+    callback(userId, '⚠️ حدث خطأ أثناء تفعيل الاشتراك.');
   } finally {
     if (connection) connection.release();
   }
@@ -113,7 +114,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     const user = existingUsers.length > 0 ? existingUsers[0] : null;
 
     if (!user) {
-      callback('ليس لديك اشتراك حاليًا ⚠️');
+      callback(userId, 'ليس لديك اشتراك حاليًا ⚠️');
       return;
     }
 
@@ -147,11 +148,11 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), totalDuration, userId]);
     await deleteActivationCode(connection, code, userId);
     await connection.commit();
-    callback(`**تم تمديد اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.**\n\n الآن مجموع الاشتراك هو ${totalDuration} 🎉`);
+    callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.**\n\n الآن مجموع الاشتراك هو ${totalDuration} 🎉`);
     cache.set(userId, true);
   } catch (err) {
     console.error('Error extending subscription:', err);
-    callback('⚠️ حدث خطأ أثناء تمديد الاشتراك.');
+    callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
 const cache = new NodeCache({ stdTTL: 7200 });
@@ -343,6 +344,11 @@ bot.on('callback_query', async (callbackQuery) => {
     };
     updateMessage(activationMessage, keyboard, msg);
     activeUsers.set(userId, 'activating');
+
+    // تخزين الرسالة في الذاكرة المؤقتة
+    const messages = temporaryMessages.get(userId) || [];
+    messages.push(msg.message_id);
+    temporaryMessages.set(userId, messages);
   } else if (data === 'subscription_status_command') {
     getSubscriptionStatus(userId, (response) => {
       const keyboard = {
@@ -370,6 +376,11 @@ bot.on('callback_query', async (callbackQuery) => {
     };
     updateMessage(extendMessage, keyboard, msg);
     activeUsers.set(userId, 'extending');
+
+    // تخزين الرسالة في الذاكرة المؤقتة
+    const messages = temporaryMessages.get(userId) || [];
+    messages.push(msg.message_id);
+    temporaryMessages.set(userId, messages);
   } else if (data === 'support_command') {
     const supportMessage = ``;
     const keyboard = {
@@ -427,28 +438,43 @@ bot.on('message', async (msg) => {
     const action = activeUsers.get(userId);
     activeUsers.delete(userId);
 
-    const callback = async (res) => {
-      await bot.sendMessage(chatId, res, { parse_mode: 'Markdown' });
+    const callback = async (userId, res) => {
+      if (!res.includes('⚠️')) {
+        // حذف الرسائل المؤقتة بعد التفعيل أو التمديد بنجاح
+        const temporaryMsgs = temporaryMessages.get(userId) || [];
+        for (const messageId of temporaryMsgs) {
+          await bot.deleteMessage(userId, messageId).catch((error) => {
+            console.error(`Error deleting temporary message: ${error.message}`);
+          });
+        }
+        temporaryMessages.delete(userId);
+      }
 
       if (!res.includes('⚠️')) {
-        const fullResponse = `
-اختر قناة المنتجات التي ترغب بها🔔
-\n\n\n
-واستمتع باسرع اشعارات لمنتجاتك المخصصة:
-`;
-        await bot.sendMessage(chatId, fullResponse, {
+        const fullResponse = `${res}\n\nاختر قناة المنتجات التي ترغب بها🔔\n\nواستمتع باسرع اشعارات لمنتجاتك المخصصة:`;
+        await bot.sendMessage(userId, fullResponse, {
           reply_markup: notificationChannelsKeyboard,
           parse_mode: 'Markdown'
         });
-
-        if (userMessagesMap.has(userId)) {
-          const previousMessages = userMessagesMap.get(userId);
-          previousMessages.forEach(messageId => {
-            bot.deleteMessage(chatId, messageId).catch((error) => {
-            });
+      } else {
+        // تعديل الرسالة الحالية
+        const temporaryMsgs = temporaryMessages.get(userId);
+        if (temporaryMsgs && temporaryMsgs.length > 0) {
+          const messageId = temporaryMsgs[0];
+          await bot.editMessageText(`⚠️ الرمز غير صالح اضغط على رجوع\n واعد ادخال الرمز مره اخرى`, {
+            chat_id: userId,
+            message_id: messageId,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: 'رجوع 🔙', callback_data: 'start' }
+                ]
+              ]
+            }
+          }).catch((error) => {
+            console.error(`Error editing message: ${error.message}`);
           });
-          userMessagesMap.delete(userId);
-          userMessagesCache.set(userId, []); // تحديث الكاش بعد الحذف
         }
       }
     };
@@ -492,13 +518,13 @@ async function activateSubscription(userId, code, callback) {
     const [results] = await connection.execute('SELECT * FROM activationcodes WHERE activation_code = ?', [code]);
     if (results.length > 0) {
       const duration = results[0].duration_in_months;
-      await activateUserSubscription(userId, code, duration, async (message) => {
-        await callback(message);
+      await activateUserSubscription(userId, code, duration, async (userId, message) => {
+        await callback(userId, message);
         
         if (userMessagesMap.has(userId)) {
           const previousMessages = userMessagesMap.get(userId);
           previousMessages.forEach(messageId => {
-            bot.deleteMessage(chatId, messageId).catch((error) => {
+            bot.deleteMessage(userId, messageId).catch((error) => {
             });
           });
           userMessagesMap.delete(userId);
@@ -506,11 +532,11 @@ async function activateSubscription(userId, code, callback) {
         }
       });
     } else {
-      callback(' ⚠️ الرمز غير صالح اضغط على رجوع\n واعد ادخال الرمز مره اخرى');
+      callback(userId, ' ⚠️ الرمز غير صالح اضغط على رجوع\n واعد ادخال الرمز مره اخرى');
     }
   } catch (err) {
     console.error('Error checking activation codes:', err);
-    callback('حدث خطأ أثناء التحقق من الكود⚠️');
+    callback(userId, 'حدث خطأ أثناء التحقق من الكود⚠️');
   } finally {
     if (connection) connection.release();
   }
