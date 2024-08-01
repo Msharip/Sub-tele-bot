@@ -248,7 +248,6 @@ bot.onText(/\/start/, async (msg) => {
     const previousMessages = userMessagesMap.get(userId);
     previousMessages.forEach(messageId => {
       bot.deleteMessage(chatId, messageId).catch((error) => {
-        console.error('Error deleting previous message:', error);
       });
     });
     userMessagesMap.delete(userId);
@@ -493,7 +492,6 @@ bot.on('message', async (msg) => {
           const previousMessages = userMessagesMap.get(userId);
           previousMessages.forEach(messageId => {
             bot.deleteMessage(chatId, messageId).catch((error) => {
-              console.error('Error deleting previous message:', error);
             });
           });
           userMessagesMap.delete(userId);
@@ -549,7 +547,6 @@ async function activateSubscription(userId, code, callback) {
           const previousMessages = userMessagesMap.get(userId);
           previousMessages.forEach(messageId => {
             bot.deleteMessage(chatId, messageId).catch((error) => {
-              console.error('Error deleting previous message:', error);
             });
           });
           userMessagesMap.delete(userId);
