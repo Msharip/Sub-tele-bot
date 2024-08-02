@@ -1,4 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
 const mysql = require('mysql2/promise');
 const cron = require('node-cron');
 require('rate-limiter-flexible');
@@ -633,5 +634,10 @@ const restoreMessages = async () => {
     }
   }
 };
+const app = express();
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
 
 restoreMessages();
