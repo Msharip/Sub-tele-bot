@@ -1,10 +1,10 @@
 const TelegramBot = require('node-telegram-bot-api');
 const mysql = require('mysql2/promise');
+const cron = require('node-cron');
 require('rate-limiter-flexible');
 const NodeCache = require("node-cache");
 const moment = require('moment-timezone');
-const cron = require('node-cron');
-
+const { exec } = require('child_process');
 require('dotenv').config();
 
 const dbConfig = {
@@ -19,67 +19,51 @@ const dbConfig = {
 };
 
 const token = process.env.TOKEN4;
-
-// قم بإضافة هذا الجزء للتأكد من إنهاء الجلسة السابقة قبل بدء جلسة جديدة
-let bot;
-const startBot = () => {
-  if (bot) {
-    bot.stopPolling()
-      .then(() => {
-        console.log('جلسة البوت السابقة تم إنهاؤها بنجاح');
-        setTimeout(() => {
-          initializeBot();
-        }, 10000); // الانتظار لمدة 10 ثوانٍ قبل إعادة التشغيل
-      })
-      .catch((error) => {
-        console.error('خطأ أثناء إنهاء الجلسة السابقة:', error);
-        setTimeout(() => {
-          initializeBot();
-        }, 10000); // الانتظار لمدة 10 ثوانٍ قبل إعادة التشغيل
-      });
-  } else {
-    initializeBot();
+const bot = new TelegramBot(token, {
+  polling: {
+    interval: 2000,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
   }
-};
+});
 
-const initializeBot = () => {
-  bot = new TelegramBot(token, {
-    polling: {
-      interval: 2000,
-      autoStart: true,
-      params: {
-        timeout: 10
-      }
+bot.on('polling_error', (error) => {
+  console.error(`Polling error: ${error.message}`);
+  if (error.response && error.response.statusCode === 502) {
+    setTimeout(() => {
+      bot.startPolling();
+    }, 10000);
+  } else if (error.response && error.response.statusCode === 429) {
+    const retryAfter = error.response.headers['retry-after'] || 30;
+    setTimeout(() => {
+      bot.startPolling();
+    }, retryAfter * 1000);
+  } else {
+    setTimeout(() => {
+      bot.startPolling();
+    }, 5000);
+  }
+});
+
+
+function restartDyno() {
+  exec('heroku restart -a sub-dzrt-bot', (err, stdout, stderr) => {
+    if (err) {
+      console.error(`Error restarting Dyno: ${err.message}`);
+      return;
     }
+    console.log(`Dyno restarted: ${stdout}`);
   });
+}
 
-  bot.on('polling_error', (error) => {
-    console.error(`Polling error: ${error.message}`);
-    if (error.message.includes('409')) {
-      console.log('Conflict detected. Restarting bot...');
-      startBot(); // إعادة تشغيل البوت عند حدوث خطأ 409
-    } else if (error.response && error.response.statusCode === 502) {
-      setTimeout(() => {
-        bot.startPolling();
-      }, 10000);
-    } else if (error.response && error.response.statusCode === 429) {
-      const retryAfter = error.response.headers['retry-after'] || 30;
-      setTimeout(() => {
-        bot.startPolling();
-      }, retryAfter * 1000);
-    } else {
-      setTimeout(() => {
-        bot.startPolling();
-      }, 5000);
-    }
-  });
+bot.on('polling_error', (error) => {
+  console.error(`Polling error: ${error.message}`);
+  console.log('Restarting Dyno due to polling error...');
+  restartDyno();
+});
 
-  // هنا باقي الكود الخاص بالبوت
-
-  console.log("Bot is running");
-};
-
-startBot();
 
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
@@ -648,6 +632,7 @@ async function deleteOldNotifications() {
 
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
 
+console.log("Bot is running");
 
 const restoreMessages = async () => {
   const users = userMessagesCache.keys();
@@ -666,6 +651,4 @@ const restoreMessages = async () => {
     }
   }
 };
-
-
 restoreMessages();
