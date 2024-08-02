@@ -39,7 +39,12 @@ const startBot = async () => {
 
   bot.on('polling_error', (error) => {
     console.error(`Polling error: ${error.message}`);
-    if (error.response && error.response.statusCode === 502) {
+    if (error.response && error.response.statusCode === 409) {
+      console.log("Conflict detected, retrying in 5 seconds...");
+      setTimeout(() => {
+        startBot();
+      }, 5000);
+    } else if (error.response && error.response.statusCode === 502) {
       setTimeout(() => {
         bot.startPolling();
       }, 10000);
@@ -621,6 +626,8 @@ async function deleteOldNotifications() {
 }
 
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
+
+console.log("Bot is running");
 
 console.log("Bot is running");
 
