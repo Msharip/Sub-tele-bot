@@ -445,7 +445,6 @@ bot.on('message', async (msg) => {
         const temporaryMsgs = temporaryMessages.get(userId) || [];
         for (const messageId of temporaryMsgs) {
           await bot.deleteMessage(userId, messageId).catch((error) => {
-            console.error(`Error deleting temporary message: ${error.message}`);
           });
         }
         temporaryMessages.delete(userId);
