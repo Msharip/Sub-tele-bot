@@ -1,9 +1,10 @@
 const TelegramBot = require('node-telegram-bot-api');
 const mysql = require('mysql2/promise');
-const cron = require('node-cron');
 require('rate-limiter-flexible');
 const NodeCache = require("node-cache");
 const moment = require('moment-timezone');
+const cron = require('node-cron');
+
 require('dotenv').config();
 
 const dbConfig = {
@@ -50,7 +51,10 @@ const initializeBot = () => {
 
   bot.on('polling_error', (error) => {
     console.error(`Polling error: ${error.message}`);
-    if (error.response && error.response.statusCode === 502) {
+    if (error.message.includes('409')) {
+      console.log('Conflict detected. Restarting bot...');
+      startBot(); // إعادة تشغيل البوت عند حدوث خطأ 409
+    } else if (error.response && error.response.statusCode === 502) {
       setTimeout(() => {
         bot.startPolling();
       }, 10000);
@@ -73,6 +77,7 @@ const initializeBot = () => {
 
 startBot();
 
+startBot();
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
 const userClicks = new Map();
