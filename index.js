@@ -22,9 +22,10 @@ const token = process.env.TOKEN4;
 let bot;
 
 const startBot = async () => {
-  // إذا كان البوت موجود، أوقف الجلسة القديمة
   if (bot) {
+    console.log("Stopping previous bot instance...");
     await bot.stopPolling();
+    bot = null;
   }
 
   bot = new TelegramBot(token, {
@@ -627,7 +628,6 @@ async function deleteOldNotifications() {
 
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
 
-console.log("Bot is running");
 
 console.log("Bot is running");
 
