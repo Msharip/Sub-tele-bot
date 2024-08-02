@@ -27,11 +27,15 @@ const startBot = () => {
     bot.stopPolling()
       .then(() => {
         console.log('جلسة البوت السابقة تم إنهاؤها بنجاح');
-        initializeBot();
+        setTimeout(() => {
+          initializeBot();
+        }, 10000); // الانتظار لمدة 10 ثوانٍ قبل إعادة التشغيل
       })
       .catch((error) => {
         console.error('خطأ أثناء إنهاء الجلسة السابقة:', error);
-        initializeBot();
+        setTimeout(() => {
+          initializeBot();
+        }, 10000); // الانتظار لمدة 10 ثوانٍ قبل إعادة التشغيل
       });
   } else {
     initializeBot();
@@ -77,7 +81,6 @@ const initializeBot = () => {
 
 startBot();
 
-startBot();
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
 const userClicks = new Map();
