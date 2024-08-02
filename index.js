@@ -1,5 +1,4 @@
 const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
 const mysql = require('mysql2/promise');
 const cron = require('node-cron');
 require('rate-limiter-flexible');
@@ -19,15 +18,26 @@ const dbConfig = {
 };
 
 const token = process.env.TOKEN4;
+
+// قم بإضافة هذا الجزء للتأكد من إنهاء الجلسة السابقة قبل بدء جلسة جديدة
 let bot;
-
-const startBot = async () => {
+const startBot = () => {
   if (bot) {
-    console.log("Stopping previous bot instance...");
-    await bot.stopPolling();
-    bot = null;
+    bot.stopPolling()
+      .then(() => {
+        console.log('جلسة البوت السابقة تم إنهاؤها بنجاح');
+        initializeBot();
+      })
+      .catch((error) => {
+        console.error('خطأ أثناء إنهاء الجلسة السابقة:', error);
+        initializeBot();
+      });
+  } else {
+    initializeBot();
   }
+};
 
+const initializeBot = () => {
   bot = new TelegramBot(token, {
     polling: {
       interval: 2000,
@@ -40,12 +50,7 @@ const startBot = async () => {
 
   bot.on('polling_error', (error) => {
     console.error(`Polling error: ${error.message}`);
-    if (error.response && error.response.statusCode === 409) {
-      console.log("Conflict detected, retrying in 5 seconds...");
-      setTimeout(() => {
-        startBot();
-      }, 5000);
-    } else if (error.response && error.response.statusCode === 502) {
+    if (error.response && error.response.statusCode === 502) {
       setTimeout(() => {
         bot.startPolling();
       }, 10000);
@@ -60,6 +65,13 @@ const startBot = async () => {
       }, 5000);
     }
   });
+
+  // هنا باقي الكود الخاص بالبوت
+
+  console.log("Bot is running");
+};
+
+startBot();
 
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
@@ -629,9 +641,6 @@ async function deleteOldNotifications() {
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
 
 
-console.log("Bot is running");
-
-// استعادة الرسائل عند بدء التشغيل
 const restoreMessages = async () => {
   const users = userMessagesCache.keys();
   for (const userId of users) {
@@ -650,8 +659,5 @@ const restoreMessages = async () => {
   }
 };
 
-restoreMessages();
-};
 
-// بدء تشغيل البوت
-startBot();
+restoreMessages();
