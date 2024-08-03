@@ -1,11 +1,9 @@
-const TelegramBot = require('node-telegram-bot-api');
-const mysql = require('mysql2/promise');
-require('rate-limiter-flexible');
-const NodeCache = require("node-cache");
-const moment = require('moment-timezone');
 const express = require('express');
 const bodyParser = require('body-parser');
-
+const TelegramBot = require('node-telegram-bot-api');
+const mysql = require('mysql2/promise');
+const NodeCache = require('node-cache');
+const moment = require('moment-timezone');
 require('dotenv').config();
 
 const dbConfig = {
@@ -19,9 +17,8 @@ const dbConfig = {
   queueLimit: 0
 };
 
-
 const token = process.env.TOKEN4;
-const url = process.env.WEBHOOK_URL; // تأكد من إعداد عنوان URL الخاص بك كمتغير بيئة
+const url = process.env.WEBHOOK_URL;
 
 const bot = new TelegramBot(token);
 const app = express();
@@ -34,16 +31,25 @@ bot.setWebHook(`${url}/bot${token}`);
 
 // توجيه لطلبات Webhook
 app.post(`/bot${token}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
+
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
 const userClicks = new Map();
 const rateLimitMap = new Map();
 const userSubscriptions = new Map();
 const userMessagesCache = new NodeCache({ stdTTL: 86400 });
-const temporaryMessages = new Map(); // لتخزين الرسائل المؤقتة
+const temporaryMessages = new Map();
+const cache = new NodeCache({ stdTTL: 7200 });
+
+// ... باقي الكود (الفنكشنات والتعامل مع التلغرام)
+
+app.listen(PORT, () => {
+  console.log(`Express server is listening on ${PORT}`);
+});
+
 
 async function deleteActivationCode(connection, code, userId) {
   const insertQuery = `
@@ -146,7 +152,6 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
-const cache = new NodeCache({ stdTTL: 7200 });
 
 async function isUserSubscribed(userId) {
   const cachedActivation = cache.get(userId);
@@ -336,7 +341,6 @@ bot.on('callback_query', async (callbackQuery) => {
     updateMessage(activationMessage, keyboard, msg);
     activeUsers.set(userId, 'activating');
 
-    // تخزين الرسالة في الذاكرة المؤقتة
     const messages = temporaryMessages.get(userId) || [];
     messages.push(msg.message_id);
     temporaryMessages.set(userId, messages);
@@ -368,7 +372,6 @@ bot.on('callback_query', async (callbackQuery) => {
     updateMessage(extendMessage, keyboard, msg);
     activeUsers.set(userId, 'extending');
 
-    // تخزين الرسالة في الذاكرة المؤقتة
     const messages = temporaryMessages.get(userId) || [];
     messages.push(msg.message_id);
     temporaryMessages.set(userId, messages);
@@ -431,7 +434,6 @@ bot.on('message', async (msg) => {
 
     const callback = async (userId, res) => {
       if (!res.includes('⚠️')) {
-        // حذف الرسائل المؤقتة بعد التفعيل أو التمديد بنجاح
         const temporaryMsgs = temporaryMessages.get(userId) || [];
         for (const messageId of temporaryMsgs) {
           await bot.deleteMessage(userId, messageId).catch((error) => {
@@ -447,7 +449,6 @@ bot.on('message', async (msg) => {
           parse_mode: 'Markdown'
         });
       } else {
-        // تعديل الرسالة الحالية
         const temporaryMsgs = temporaryMessages.get(userId);
         if (temporaryMsgs && temporaryMsgs.length > 0) {
           const messageId = temporaryMsgs[0];
@@ -624,9 +625,10 @@ const restoreMessages = async () => {
   }
 };
 
-
 restoreMessages();
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Express server is listening on ${PORT}`);
+  console.log(`Express server is listening on ${PORT}`);
 });
