@@ -16,35 +16,26 @@ const dbConfig = {
   queueLimit: 0
 };
 
+
+const bodyParser = require('body-parser');
+const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.TOKEN4;
-const bot = new TelegramBot(token, {
-  polling: {
-    interval: 2000,
-    autoStart: true,
-    params: {
-      timeout: 10
-    }
-  }
-});
+const url = process.env.WEBHOOK_URL; // تأكد من إعداد عنوان URL الخاص بك كمتغير بيئة
 
-bot.on('polling_error', (error) => {
-  console.error(`Polling error: ${error.message}`);
-  if (error.response && error.response.statusCode === 502) {
-    setTimeout(() => {
-      bot.startPolling();
-    }, 10000);
-  } else if (error.response && error.response.statusCode === 429) {
-    const retryAfter = error.response.headers['retry-after'] || 30;
-    setTimeout(() => {
-      bot.startPolling();
-    }, retryAfter * 1000);
-  } else {
-    setTimeout(() => {
-      bot.startPolling();
-    }, 5000);
-  }
-});
+const bot = new TelegramBot(token);
+const app = express();
 
+// إعداد express
+app.use(bodyParser.json());
+
+// ضبط Webhook
+bot.setWebHook(`${url}/bot${token}`);
+
+// توجيه لطلبات Webhook
+app.post(`/bot${token}`, (req, res) => {
+    bot.processUpdate(req.body);
+    res.sendStatus(200);
+});
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
 const userClicks = new Map();
