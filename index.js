@@ -46,9 +46,7 @@ const cache = new NodeCache({ stdTTL: 7200 });
 
 // ... باقي الكود (الفنكشنات والتعامل مع التلغرام)
 
-app.listen(PORT, () => {
-  console.log(`Express server is listening on ${PORT}`);
-});
+
 
 
 async function deleteActivationCode(connection, code, userId) {
