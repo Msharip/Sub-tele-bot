@@ -4,7 +4,8 @@
   "description": "A Telegram bot for managing subscriptions",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "restart-dyno": "node restart_dyno.js"
   },
   "dependencies": {
     "dotenv": "^10.0.0",

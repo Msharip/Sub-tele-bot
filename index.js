@@ -1,10 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
 const mysql = require('mysql2/promise');
-const cron = require('node-cron');
 require('rate-limiter-flexible');
 const NodeCache = require("node-cache");
 const moment = require('moment-timezone');
-const { exec } = require('child_process');
 require('dotenv').config();
 
 const dbConfig = {
@@ -46,24 +44,6 @@ bot.on('polling_error', (error) => {
     }, 5000);
   }
 });
-
-
-function restartDyno() {
-  exec('heroku restart -a sub-dzrt-bot', (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error restarting Dyno: ${err.message}`);
-      return;
-    }
-    console.log(`Dyno restarted: ${stdout}`);
-  });
-}
-
-bot.on('polling_error', (error) => {
-  console.error(`Polling error: ${error.message}`);
-  console.log('Restarting Dyno due to polling error...');
-  restartDyno();
-});
-
 
 const pool = mysql.createPool(dbConfig);
 const activeUsers = new Map();
@@ -651,4 +631,6 @@ const restoreMessages = async () => {
     }
   }
 };
+
+
 restoreMessages();
