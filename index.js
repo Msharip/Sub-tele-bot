@@ -3,6 +3,9 @@ const mysql = require('mysql2/promise');
 require('rate-limiter-flexible');
 const NodeCache = require("node-cache");
 const moment = require('moment-timezone');
+const express = require('express');
+const bodyParser = require('body-parser');
+
 require('dotenv').config();
 
 const dbConfig = {
@@ -17,8 +20,6 @@ const dbConfig = {
 };
 
 
-const bodyParser = require('body-parser');
-const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.TOKEN4;
 const url = process.env.WEBHOOK_URL; // تأكد من إعداد عنوان URL الخاص بك كمتغير بيئة
 
@@ -625,3 +626,7 @@ const restoreMessages = async () => {
 
 
 restoreMessages();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Express server is listening on ${PORT}`);
+});
