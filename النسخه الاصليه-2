@@ -70,30 +70,17 @@ async function activateUserSubscription(userId, code, duration, callback) {
 
     const user = existingUsers.length > 0 ? existingUsers[0] : null;
 
-    const startDate = moment().tz('Asia/Riyadh').format('YYYY-MM-DD');
-    let expiryDate = moment().tz('Asia/Riyadh');
-    if (duration < 0) {
-      expiryDate.subtract(Math.abs(duration), 'days');
-    } else {
-      expiryDate.add(duration, 'months');
-    }
-
     if (user) {
-      if (moment(user.expiryDate).isBefore(startDate)) {
-        // إذا انتهى الاشتراك الحالي
-        const updateQuery = `
-          UPDATE users SET activated = ?, subscriptionType = ?, startDate = ?, expiryDate = ?
-          WHERE id = ?
-        `;
-        await connection.execute(updateQuery, [true, `${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}`, startDate, expiryDate.format('YYYY-MM-DD'), userId]);
-        await deleteActivationCode(connection, code, userId);
-        await connection.commit();
-        callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.** 🎉`);
-      } else {
-        // إذا كان الاشتراك الحالي لا يزال فعالا
-        await extendUserSubscription(connection, userId, code, duration, callback);
-      }
+      await extendUserSubscription(connection, userId, code, duration, callback);
     } else {
+      const startDate = moment().tz('Asia/Riyadh').format('YYYY-MM-DD');
+      let expiryDate = moment().tz('Asia/Riyadh');
+      if (duration < 0) {
+        expiryDate.subtract(Math.abs(duration), 'days');
+      } else {
+        expiryDate.add(duration, 'months');
+      }
+
       const insertQuery = `
         INSERT INTO users (id, activated, subscriptionType, startDate, expiryDate)
         VALUES (?, ?, ?, ?, ?)
@@ -104,6 +91,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
       callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.** 🎉`);
     }
 
+    await connection.execute('UPDATE users SET activated = true WHERE id = ?', [userId]);
     userSubscriptions.set(userId, true);
     cache.set(userId, true);
   } catch (err) {
@@ -114,7 +102,6 @@ async function activateUserSubscription(userId, code, duration, callback) {
     if (connection) connection.release();
   }
 }
-
 
 async function extendUserSubscription(connection, userId, code, duration, callback) {
   try {
