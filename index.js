@@ -156,7 +156,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), totalDuration, userId]);
     await deleteActivationCode(connection, code, userId);
     await connection.commit();
-    callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.**\n\n الآن مجموع الاشتراك هو ${totalDuration} 🎉`);
+    callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.**\n\n`);
     cache.set(userId, true);
   } catch (err) {
     console.error('Error extending subscription:', err);
@@ -502,7 +502,7 @@ async function getSubscriptionStatus(userId, callback) {
     const subscriptionType = user.subscriptionType;
     const remainingDays = Math.floor((new Date(user.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
     callback(`
-📊 **حالة الاشتراك:**\n\n\n\n🔹 **مدة باقية للاشتراك:** ${remainingDays} يومًا
+📊 **حالة الاشتراك:**\n\n🔹 **مدة باقية للاشتراك:** ${remainingDays} يومًا
     `);
   } catch (err) {
     console.error('Error getting subscription status:', err);
