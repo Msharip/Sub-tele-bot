@@ -502,7 +502,7 @@ async function getSubscriptionStatus(userId, callback) {
     const subscriptionType = user.subscriptionType;
     const remainingDays = Math.floor((new Date(user.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
     callback(`
-📊 **حالة الاشتراك:**\n\n\n\n🔹 **مدة باقية للاشتراك:** ${remainingDays} يومًا
+📊 **حالة الاشتراك:**\n\n🔹 **نوع الاشتراك:** ${subscriptionType}\n🔹 **مدة باقية للاشتراك:** ${remainingDays} يومًا
     `);
   } catch (err) {
     console.error('Error getting subscription status:', err);
