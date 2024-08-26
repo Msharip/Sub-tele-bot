@@ -51,7 +51,7 @@ const cache = new NodeCache({ stdTTL: 7200 });
 
 async function deleteActivationCode(connection, code, userId) {
   const insertQuery = `
-    INSERT INTO activated_codes (chat_id, activation_code, activation_date,duration_in_months)
+    INSERT INTO activated_codes (chat_id, activation_code,activation_date,duration_in_months)
     VALUES (?, ?, ?,?)
   `;
   await connection.execute(insertQuery, [userId, code, moment().tz('Asia/Riyadh').format('YYYY-MM-DD HH:mm:ss')]);
