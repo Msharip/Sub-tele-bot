@@ -70,7 +70,6 @@ async function deleteActivationCode(connection, code, userId) {
   const deleteQuery = 'DELETE FROM activationcodes WHERE activation_code = ?';
   await connection.execute(deleteQuery, [code]);
 }
-
 // تفعيل اشتراك 
 async function activateUserSubscription(userId, code, duration, callback) {
   let connection;
@@ -157,13 +156,17 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       if (duration < 0) {
           expiryDate.add(Math.abs(duration), 'days');
           if (user.subscriptionType.includes('أشهر')) {
-              totalDuration = user.subscriptionType;
+              totalDuration = user.subscriptionType; // حافظ على نوع الاشتراك إذا كان "أشهر"
           } else {
               totalDuration = `${Math.abs(duration)} يوم`;
           }
       } else {
           expiryDate.add(duration, 'months');
-          totalDuration = `${duration} أشهر`;
+          
+          // حساب المدة الإجمالية للأشهر
+          const currentMonths = parseInt(user.subscriptionType.match(/\d+/)[0]);
+          const newTotalMonths = currentMonths + duration;
+          totalDuration = `${newTotalMonths} أشهر`;
       }
 
       const updateQuery = `
@@ -182,8 +185,6 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
-
-
 
 
 async function isUserSubscribed(userId) {
