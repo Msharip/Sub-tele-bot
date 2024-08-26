@@ -87,6 +87,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
 
       if (user) {
           if (moment(user.expiryDate).isBefore(startDate)) {
+              // اشتراك منتهي، تفعيل اشتراك جديد
               if (duration < 0) {
                   expiryDate.add(Math.abs(duration), 'days');
                   subscriptionType = `${Math.abs(duration)} يوم`;
@@ -100,9 +101,12 @@ async function activateUserSubscription(userId, code, duration, callback) {
               `;
               await connection.execute(updateQuery, [true, subscriptionType, startDate, expiryDate.format('YYYY-MM-DD'), userId]);
           } else {
+              // تمديد الاشتراك الحالي
               await extendUserSubscription(connection, userId, code, duration, callback);
+              return;
           }
       } else {
+          // تفعيل اشتراك لأول مرة
           if (duration < 0) {
               expiryDate.add(Math.abs(duration), 'days');
               subscriptionType = `${Math.abs(duration)} يوم`;
@@ -120,7 +124,10 @@ async function activateUserSubscription(userId, code, duration, callback) {
 
       await deleteActivationCode(connection, code, userId);
       await connection.commit();
-      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${subscriptionType}.** 🎉`);
+
+      const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
+
+      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${subscriptionType}.**\nالمدة الإجمالية المتبقية: ${totalDays} يوم. 🎉`);
       userSubscriptions.set(userId, true);
       cache.set(userId, true);
   } catch (err) {
@@ -131,6 +138,8 @@ async function activateUserSubscription(userId, code, duration, callback) {
       if (connection) connection.release();
   }
 }
+
+
 // تمديد اشتراك 
 async function extendUserSubscription(connection, userId, code, duration, callback) {
   try {
@@ -147,7 +156,6 @@ async function extendUserSubscription(connection, userId, code, duration, callba
 
       if (duration < 0) {
           expiryDate.add(Math.abs(duration), 'days');
-          // الحفاظ على نوع الاشتراك إذا كان المستخدم مشتركًا بالأشهر
           if (user.subscriptionType.includes('أشهر')) {
               totalDuration = user.subscriptionType;
           } else {
@@ -164,13 +172,17 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), totalDuration, userId]);
       await deleteActivationCode(connection, code, userId);
       await connection.commit();
-      callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${totalDuration}.**\n\n`);
+
+      const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
+
+      callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${totalDuration}.**\nالمدة الإجمالية المتبقية: ${totalDays} يوم. 🎉`);
       cache.set(userId, true);
   } catch (err) {
       console.error('Error extending subscription:', err);
       callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
+
 
 
 
