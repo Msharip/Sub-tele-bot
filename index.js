@@ -132,25 +132,16 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     let expiryDate = moment(user.expiryDate).tz('Asia/Riyadh');
     let totalDuration = '';
 
-    if (user.subscriptionType.includes('يوم')) {
-      if (duration > 0) {
-        expiryDate = moment().tz('Asia/Riyadh').add(duration, 'months');
-        totalDuration = `${duration} أشهر`;
-      } else {
-        expiryDate.subtract(Math.abs(duration), 'days');
-        const totalDays = user.subscriptionType.match(/\d+/) ? parseInt(user.subscriptionType.match(/\d+/)[0]) - Math.abs(duration) : Math.abs(duration);
-        totalDuration = `${totalDays} يوم`;
-      }
+    if (duration < 0) { 
+      // تمديد الاشتراك بالأيام
+      expiryDate.add(Math.abs(duration), 'days');
+      const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); 
+      totalDuration = `${totalDays} يوم`;
     } else {
-      if (duration < 0) {
-        expiryDate.subtract(Math.abs(duration), 'days');
-        const totalMonths = user.subscriptionType.match(/\d+/) ? parseInt(user.subscriptionType.match(/\d+/)[0]) + Math.floor(Math.abs(duration) / 30) : Math.abs(duration);
-        totalDuration = `${totalMonths} أشهر`;
-      } else {
-        expiryDate.add(duration, 'months');
-        const totalMonths = user.subscriptionType.match(/\d+/) ? parseInt(user.subscriptionType.match(/\d+/)[0]) + duration : duration;
-        totalDuration = `${totalMonths} أشهر`;
-      }
+      // تمديد الاشتراك بالأشهر
+      expiryDate.add(duration, 'months');
+      const totalMonths = Math.floor(expiryDate.diff(moment().tz('Asia/Riyadh'), 'days') / 30);
+      totalDuration = `${totalMonths} أشهر`;
     }
 
     const updateQuery = `
@@ -159,6 +150,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), totalDuration, userId]);
     await deleteActivationCode(connection, code, userId);
     await connection.commit();
+
     callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${Math.abs(duration)} ${duration < 0 ? 'يوم' : 'أشهر'}.**\n\n الآن مجموع الاشتراك هو ${totalDuration} 🎉`);
     cache.set(userId, true);
   } catch (err) {
@@ -166,6 +158,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
     callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
+
 
 // مفعل او غير مفعل لعرض القائمه المناسبه 
 async function isUserSubscribed(userId) {
