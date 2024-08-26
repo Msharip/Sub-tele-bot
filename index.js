@@ -69,8 +69,7 @@ async function deleteActivationCode(connection, code, userId) {
   // حذف الرمز من جدول activationcodes
   const deleteQuery = 'DELETE FROM activationcodes WHERE activation_code = ?';
   await connection.execute(deleteQuery, [code]);
-}
-// تفعيل اشتراك 
+}// تفعيل اشتراك 
 async function activateUserSubscription(userId, code, duration, callback) {
   let connection;
   try {
@@ -89,11 +88,10 @@ async function activateUserSubscription(userId, code, duration, callback) {
               // اشتراك منتهي، تفعيل اشتراك جديد
               if (duration < 0) {
                   expiryDate.add(Math.abs(duration), 'days');
-                  subscriptionType = `${Math.abs(duration)} يوم`;
               } else {
                   expiryDate.add(duration, 'months');
-                  subscriptionType = `${duration} أشهر`;
               }
+              subscriptionType = `${expiryDate.diff(startDate, 'days')} يوم`;
               const updateQuery = `
               UPDATE users SET activated = ?, subscriptionType = ?, startDate = ?, expiryDate = ?
               WHERE id = ?
@@ -108,11 +106,10 @@ async function activateUserSubscription(userId, code, duration, callback) {
           // تفعيل اشتراك لأول مرة
           if (duration < 0) {
               expiryDate.add(Math.abs(duration), 'days');
-              subscriptionType = `${Math.abs(duration)} يوم`;
           } else {
               expiryDate.add(duration, 'months');
-              subscriptionType = `${duration} أشهر`;
           }
+          subscriptionType = `${expiryDate.diff(startDate, 'days')} يوم`;
 
           const insertQuery = `
           INSERT INTO users (id, activated, subscriptionType, startDate, expiryDate)
@@ -126,7 +123,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
 
       const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
 
-      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${subscriptionType}.**\nالمدة الإجمالية المتبقية: ${totalDays} يوم. 🎉`);
+      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${totalDays} يوم.** 🎉`);
       userSubscriptions.set(userId, true);
       cache.set(userId, true);
   } catch (err) {
@@ -137,7 +134,6 @@ async function activateUserSubscription(userId, code, duration, callback) {
       if (connection) connection.release();
   }
 }
-
 
 // تمديد اشتراك 
 async function extendUserSubscription(connection, userId, code, duration, callback) {
@@ -155,19 +151,11 @@ async function extendUserSubscription(connection, userId, code, duration, callba
 
       if (duration < 0) {
           expiryDate.add(Math.abs(duration), 'days');
-          if (user.subscriptionType.includes('أشهر')) {
-              totalDuration = user.subscriptionType; // حافظ على نوع الاشتراك إذا كان "أشهر"
-          } else {
-              totalDuration = `${Math.abs(duration)} يوم`;
-          }
       } else {
           expiryDate.add(duration, 'months');
-          
-          // حساب المدة الإجمالية للأشهر
-          const currentMonths = parseInt(user.subscriptionType.match(/\d+/)[0]);
-          const newTotalMonths = currentMonths + duration;
-          totalDuration = `${newTotalMonths} أشهر`;
       }
+
+      totalDuration = `${expiryDate.diff(moment().tz('Asia/Riyadh'), 'days')} يوم`;
 
       const updateQuery = `
       UPDATE users SET expiryDate = ?, subscriptionType = ? WHERE id = ?
@@ -178,13 +166,14 @@ async function extendUserSubscription(connection, userId, code, duration, callba
 
       const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
 
-      callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${totalDuration}.**\nالمدة الإجمالية المتبقية: ${totalDays} يوم. 🎉`);
+      callback(userId, `**تم تمديد اشتراكك بنجاح لمدة ${totalDays} يوم.** 🎉`);
       cache.set(userId, true);
   } catch (err) {
       console.error('Error extending subscription:', err);
       callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
+
 
 
 async function isUserSubscribed(userId) {
