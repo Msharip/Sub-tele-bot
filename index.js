@@ -47,18 +47,30 @@ const cache = new NodeCache({ stdTTL: 7200 });
 // ... باقي الكود (الفنكشنات والتعامل مع التلغرام)
 
 
-
-
 async function deleteActivationCode(connection, code, userId) {
-  const insertQuery = `
-    INSERT INTO activated_codes (chat_id, activation_code,activation_date,duration_in_months)
-    VALUES (?, ?, ?,?)
-  `;
-  await connection.execute(insertQuery, [userId, code, moment().tz('Asia/Riyadh').format('YYYY-MM-DD HH:mm:ss')]);
+  // جلب قيمة duration_in_months من جدول activationcodes
+  const [rows] = await connection.execute('SELECT duration_in_months FROM activationcodes WHERE activation_code = ?', [code]);
+  
+  if (rows.length === 0) {
+      console.error('Error: Activation code not found.');
+      return;
+  }
 
+  const durationInMonths = rows[0].duration_in_months;
+
+  // تخزين الرمز في جدول activated_codes مع مدة الاشتراك
+  const insertQuery = `
+    INSERT INTO activated_codes (chat_id, activation_code, activation_date, duration)
+    VALUES (?, ?, ?, ?)
+  `;
+  await connection.execute(insertQuery, [userId, code, moment().tz('Asia/Riyadh').format('YYYY-MM-DD HH:mm:ss'), durationInMonths]);
+
+  // حذف الرمز من جدول activationcodes
   const deleteQuery = 'DELETE FROM activationcodes WHERE activation_code = ?';
   await connection.execute(deleteQuery, [code]);
 }
+
+
 // تفعيل الاشتراك
 async function activateUserSubscription(userId, code, duration, callback) {
   let connection;
