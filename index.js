@@ -48,9 +48,8 @@ const cache = new NodeCache({ stdTTL: 7200 });
 
 
 
-
+// تخزين رمز التفعيل وحذفه
 async function deleteActivationCode(connection, code, userId) {
-  // جلب قيمة duration_in_months من جدول activationcodes
   const [rows] = await connection.execute('SELECT duration_in_months FROM activationcodes WHERE activation_code = ?', [code]);
   
   if (rows.length === 0) {
@@ -72,7 +71,7 @@ async function deleteActivationCode(connection, code, userId) {
   await connection.execute(deleteQuery, [code]);
 }
 
-
+// تفعيل اشتراك 
 async function activateUserSubscription(userId, code, duration, callback) {
   let connection;
   try {
@@ -80,55 +79,48 @@ async function activateUserSubscription(userId, code, duration, callback) {
       await connection.beginTransaction();
 
       const [existingUsers] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
-
       const user = existingUsers.length > 0 ? existingUsers[0] : null;
 
       const startDate = moment().tz('Asia/Riyadh').format('YYYY-MM-DD');
       let expiryDate = moment().tz('Asia/Riyadh');
       let subscriptionType = '';
 
-      if (duration < 0) {
-          expiryDate.add(Math.abs(duration), 'days'); // إضافة عدد الأيام
-          subscriptionType = `${Math.abs(duration)} يوم`;
-      } else {
-          expiryDate.add(duration, 'months');
-          subscriptionType = `${duration} أشهر`;
-      }
-
       if (user) {
           if (moment(user.expiryDate).isBefore(startDate)) {
+              if (duration < 0) {
+                  expiryDate.add(Math.abs(duration), 'days');
+                  subscriptionType = `${Math.abs(duration)} يوم`;
+              } else {
+                  expiryDate.add(duration, 'months');
+                  subscriptionType = `${duration} أشهر`;
+              }
               const updateQuery = `
-              UPDATE users SET activated = ?, startDate = ?, expiryDate = ?
+              UPDATE users SET activated = ?, subscriptionType = ?, startDate = ?, expiryDate = ?
               WHERE id = ?
               `;
-              await connection.execute(updateQuery, [true, startDate, expiryDate.format('YYYY-MM-DD'), userId]);
-              
-              // إذا كان الاشتراك الحالي أشهر ويضيف أيام، يتم الاحتفاظ بنوع الاشتراك الحالي
-              if (duration < 0 && user.subscriptionType.includes('أشهر')) {
-                  subscriptionType = user.subscriptionType;
-              }
-
-              await connection.execute(`
-              UPDATE users SET subscriptionType = ? WHERE id = ?
-              `, [subscriptionType, userId]);
-
-              await deleteActivationCode(connection, code, userId);
-              await connection.commit();
-              callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${expiryDate.diff(moment(), 'days')} أيام.** 🎉`);
-            } else {
+              await connection.execute(updateQuery, [true, subscriptionType, startDate, expiryDate.format('YYYY-MM-DD'), userId]);
+          } else {
               await extendUserSubscription(connection, userId, code, duration, callback);
           }
       } else {
+          if (duration < 0) {
+              expiryDate.add(Math.abs(duration), 'days');
+              subscriptionType = `${Math.abs(duration)} يوم`;
+          } else {
+              expiryDate.add(duration, 'months');
+              subscriptionType = `${duration} أشهر`;
+          }
+
           const insertQuery = `
           INSERT INTO users (id, activated, subscriptionType, startDate, expiryDate)
           VALUES (?, ?, ?, ?, ?)
           `;
           await connection.execute(insertQuery, [userId, true, subscriptionType, startDate, expiryDate.format('YYYY-MM-DD')]);
-          await deleteActivationCode(connection, code, userId);
-          await connection.commit();
-          callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${expiryDate.diff(moment(), 'days')} أيام.** 🎉`);
-        }
+      }
 
+      await deleteActivationCode(connection, code, userId);
+      await connection.commit();
+      callback(userId, `**تم تفعيل اشتراكك بنجاح لمدة ${subscriptionType}.** 🎉`);
       userSubscriptions.set(userId, true);
       cache.set(userId, true);
   } catch (err) {
@@ -139,8 +131,7 @@ async function activateUserSubscription(userId, code, duration, callback) {
       if (connection) connection.release();
   }
 }
-
-
+// تمديد اشتراك 
 async function extendUserSubscription(connection, userId, code, duration, callback) {
   try {
       const [existingUsers] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
@@ -156,7 +147,12 @@ async function extendUserSubscription(connection, userId, code, duration, callba
 
       if (duration < 0) {
           expiryDate.add(Math.abs(duration), 'days');
-          totalDuration = `${Math.abs(duration)} يوم`;
+          // الحفاظ على نوع الاشتراك إذا كان المستخدم مشتركًا بالأشهر
+          if (user.subscriptionType.includes('أشهر')) {
+              totalDuration = user.subscriptionType;
+          } else {
+              totalDuration = `${Math.abs(duration)} يوم`;
+          }
       } else {
           expiryDate.add(duration, 'months');
           totalDuration = `${duration} أشهر`;
@@ -175,6 +171,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
+
 
 
 async function isUserSubscribed(userId) {
