@@ -142,26 +142,24 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       let totalDuration = '';
       let newSubscriptionType = user.subscriptionType;
 
-      if (duration < 0) {
-          expiryDate.add(Math.abs(duration), 'days');
-          totalDuration = `${Math.abs(duration)} يوم`;
-
-          // إذا كان الاشتراك الحالي شهريًا وتم تمديده بيوم واحد، لا تغير نوع الاشتراك
-          if (!user.subscriptionType.includes('يوم')) {
-              newSubscriptionType = user.subscriptionType; // الاحتفاظ بنوع الاشتراك الحالي
-          }
-      } else {
-          expiryDate.add(duration, 'months');
-          totalDuration = `${duration} أشهر`;
-
-          // جمع الأشهر لتكون الإجمالي
-          if (user.subscriptionType.includes('أشهر')) {
-              let existingMonths = parseInt(user.subscriptionType.split(' ')[0], 10);
-              totalDuration = `${existingMonths + duration} أشهر`;
-          } else {
-              newSubscriptionType = totalDuration;
-          }
-      }
+      if (duration > 0) { // عندما يكون التمديد لأشهر
+        expiryDate.add(duration, 'months');
+        
+        // تحديث نوع الاشتراك فقط إذا كان الاشتراك الحالي يوميًا
+        if (user.subscriptionType.includes('يوم')) {
+            newSubscriptionType = `${duration} أشهر`;
+        } else {
+            let existingMonths = parseInt(user.subscriptionType.split(' ')[0], 10);
+            totalDuration = `${existingMonths + duration} أشهر`;
+            newSubscriptionType = totalDuration;
+        }
+    } else {
+        expiryDate.add(Math.abs(duration), 'days');
+        if (!user.subscriptionType.includes('يوم')) {
+            newSubscriptionType = user.subscriptionType; // الاحتفاظ بنوع الاشتراك الحالي
+        }
+    }
+    
 
       const updateQuery = `
       UPDATE users SET expiryDate = ?, subscriptionType = ? WHERE id = ?
