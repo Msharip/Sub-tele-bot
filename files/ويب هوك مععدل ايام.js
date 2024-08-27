@@ -48,30 +48,17 @@ const cache = new NodeCache({ stdTTL: 7200 });
 
 
 
-// تخزين رمز التفعيل وحذفه
+
 async function deleteActivationCode(connection, code, userId) {
-  const [rows] = await connection.execute('SELECT duration_in_months FROM activationcodes WHERE activation_code = ?', [code]);
-  
-  if (rows.length === 0) {
-      console.error('Error: Activation code not found.');
-      return;
-  }
-
-  const durationInMonths = rows[0].duration_in_months;
-
-  // تخزين الرمز في جدول activated_codes مع مدة الاشتراك
   const insertQuery = `
-    INSERT INTO activated_codes (chat_id, activation_code, activation_date, duration)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO activated_codes (chat_id, activation_code, activation_date)
+    VALUES (?, ?, ?)
   `;
-  await connection.execute(insertQuery, [userId, code, moment().tz('Asia/Riyadh').format('YYYY-MM-DD HH:mm:ss'), durationInMonths]);
+  await connection.execute(insertQuery, [userId, code, moment().tz('Asia/Riyadh').format('YYYY-MM-DD HH:mm:ss')]);
 
-  // حذف الرمز من جدول activationcodes
   const deleteQuery = 'DELETE FROM activationcodes WHERE activation_code = ?';
   await connection.execute(deleteQuery, [code]);
 }
-
-// تفعيل اشتراك 
 async function activateUserSubscription(userId, code, duration, callback) {
   let connection;
   try {
@@ -159,7 +146,7 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       
       const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
 
-      callback(userId, `**تم تمديد اشتراكك بنجاح **\n\n الآن مجموع الاشتراك هو ${totalDays} 🎉`);
+      callback(userId, `**تم تمديد اشتراكك بنجاح **\n\n الآن مجموع الاشتراك هو ${totalDuration} 🎉`);
 
       cache.set(userId, true);
   } catch (err) {
@@ -167,7 +154,6 @@ async function extendUserSubscription(connection, userId, code, duration, callba
       callback(userId, '⚠️ حدث خطأ أثناء تمديد الاشتراك.');
   }
 }
-
 
 
 async function isUserSubscribed(userId) {
