@@ -128,7 +128,6 @@ async function activateUserSubscription(userId, code, duration, callback) {
       if (connection) connection.release();
   }
 }
-
 async function extendUserSubscription(connection, userId, code, duration, callback) {
   try {
       const [existingUsers] = await connection.execute('SELECT * FROM users WHERE id = ?', [userId]);
@@ -141,25 +140,39 @@ async function extendUserSubscription(connection, userId, code, duration, callba
 
       let expiryDate = moment(user.expiryDate).tz('Asia/Riyadh');
       let totalDuration = '';
+      let newSubscriptionType = user.subscriptionType;
 
       if (duration < 0) {
           expiryDate.add(Math.abs(duration), 'days');
           totalDuration = `${Math.abs(duration)} يوم`;
+
+          // إذا كان الاشتراك الحالي شهريًا وتم تمديده بيوم واحد، لا تغير نوع الاشتراك
+          if (!user.subscriptionType.includes('يوم')) {
+              newSubscriptionType = user.subscriptionType; // الاحتفاظ بنوع الاشتراك الحالي
+          }
       } else {
           expiryDate.add(duration, 'months');
           totalDuration = `${duration} أشهر`;
+
+          // جمع الأشهر لتكون الإجمالي
+          if (user.subscriptionType.includes('أشهر')) {
+              let existingMonths = parseInt(user.subscriptionType.split(' ')[0], 10);
+              totalDuration = `${existingMonths + duration} أشهر`;
+          } else {
+              newSubscriptionType = totalDuration;
+          }
       }
 
       const updateQuery = `
       UPDATE users SET expiryDate = ?, subscriptionType = ? WHERE id = ?
       `;
-      await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), totalDuration, userId]);
+      await connection.execute(updateQuery, [expiryDate.format('YYYY-MM-DD'), newSubscriptionType, userId]);
       await deleteActivationCode(connection, code, userId);
       await connection.commit();
       
       const totalDays = expiryDate.diff(moment().tz('Asia/Riyadh'), 'days'); // حساب المدة الإجمالية باليوم
 
-      callback(userId, `**تم تمديد اشتراكك بنجاح **\n\n الآن مجموع الاشتراك هو ${totalDays} 🎉`);
+      callback(userId, `**تم تمديد اشتراكك بنجاح **\n\n الآن مجموع الاشتراك هو ${totalDays} يوم 🎉`);
 
       cache.set(userId, true);
   } catch (err) {
