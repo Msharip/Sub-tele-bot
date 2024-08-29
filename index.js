@@ -641,9 +641,53 @@ async function deleteOldNotifications() {
   }
 }
 
+// دالة لتأخير التنفيذ بين الدفعات
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 setInterval(deleteOldNotifications, 24 * 60 * 60 * 1000);
 
-console.log("Bot is running");
+async function sendExpiryNotification(userId) {
+  try {
+    const message = `
+انتهى اشتراكك للتجديد قم بزيارة الموقع:
+[www.dzrtgg.com](https://www.dzrtgg.com)
+
+طريق التفعيل أو التمديد بنفس تفعيلك السابق.
+    `;
+    await bot.sendMessage(userId, message, { parse_mode: 'Markdown' });
+    console.log(`تم إرسال رسالة انتهاء الاشتراك بنجاح للمستخدم: ${userId}`);
+  } catch (error) {
+    console.error(`فشل إرسال رسالة انتهاء الاشتراك للمستخدم ${userId}:`, error);
+  }
+}
+
+app.post('/sendExpiryNotification', async (req, res) => {
+  const { userId } = req.body;
+  await sendExpiryNotification(userId);
+  res.sendStatus(200);
+});
+
+const BATCH_SIZE = 20; // عدد المستخدمين في كل دفعة
+const DELAY_BETWEEN_BATCHES = 10000; // 10 ثانية تأخير بين الدفعات
+
+// دالة لإرسال إشعارات انتهاء الاشتراك على دفعات
+async function sendExpiryNotifications(users) {
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = users.slice(i, i + BATCH_SIZE);
+
+    await Promise.all(batch.map(async (user) => {
+      await sendExpiryNotification(user.id);
+    }));
+
+    // تأخير قبل إرسال الدفعة التالية
+    await delay(DELAY_BETWEEN_BATCHES);
+  }
+}
+ 
+sendExpiryNotifications(users);
+
 
 const restoreMessages = async () => {
   const users = userMessagesCache.keys();
@@ -666,6 +710,7 @@ const restoreMessages = async () => {
 restoreMessages();
 
 
+console.log("Bot is running");
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Express server is listening on ${PORT}`);
