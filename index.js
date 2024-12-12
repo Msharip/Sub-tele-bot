@@ -224,19 +224,19 @@ const notificationChannelsKeyboard = {
       { text: 'ايسي رش ❄️', url: 'https://t.me/+gqDbjTPNS9NiMjJk' }
     ],
     [
-      { text: 'هيلة 🌾', url: 'https://t.me/+iPjCEuLjIadkMmU0' },
+      { text: 'حامض 🟠', url: 'https://t.me/+iPjCEuLjIadkMmU0' },
       { text: 'هيلاند بيريز 🍇', url: 'https://t.me/+-l3iURW1JJQ2MDBk' }
     ],
     [
-      { text: 'تمرة 🌴', url: 'https://t.me/+T62d0ZHKjfY2NTlk' },
-      { text: 'سمرة 🌟', url: 'https://t.me/+MSFh3FWe_vs5MjY0' }
+      { text: 'مانقا 🟡', url: 'https://t.me/+T62d0ZHKjfY2NTlk' },
+      { text: 'بنه 🟤', url: 'https://t.me/+MSFh3FWe_vs5MjY0' }
     ],
     [
       { text: 'جاردن منت 🍃', url: 'https://t.me/+Sul2NHCi-s9jNGM8' },
       { text: 'منت فيوجن 🍃', url: 'https://t.me/+G3R8OkjZk2w1ZWE8' }
     ],
     [
-      { text: 'بيربل ميست 🌺', url: 'https://t.me/+b529gE_uouxiOThk' },
+      { text: ' عنقود 🍇', url: 'https://t.me/+b529gE_uouxiOThk' },
       { text: 'ايدجي منت ☘ ', url: 'https://t.me/+P34lacNg8gZiOTlk' }
     ],
     [
