@@ -237,8 +237,8 @@ UPDATE users SET expiryDate=?, subscriptionType=? WHERE id=?
 
 | العمود | النوع | الوصف |
 |---|---|---|
-| `activation_code` | VARCHAR | الرمز الذي يُدخله المستخدم — مفتاح أساسي |
-| `duration_in_months` | INT | المدة: رقم موجب = أشهر، رقم سالب = أيام (مثال: `-7` يعني 7 أيام) |
+| `activation_code` | VARCHAR | الرمز الذي يُدخله المستخدم — مفتاح أساسي|
+| `duration_in_months` | INT | المدة: رقم موجب = أشهر، رقم سالب = أيام (مثال: `-7` يعني 7 أيام)|
 
 **كيف يقرأ منه البوت:**
 ```js
