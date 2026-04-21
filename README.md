@@ -201,9 +201,9 @@ const mainKeyboard = (isSubscribed) => ({
 
 | العمود | النوع | الوصف |
 |---|---|---|
-| `id` | BIGINT | معرف المستخدم من تيليغرام — المفتاح الأساسي         |
-| `activated` | BOOLEAN | `1` = مشترك نشط، `0` = منتهي أو غير مشترك        |
-| `subscriptionType` | VARCHAR | نص يصف المدة مثل `"3 أشهر"` أو `"7 يوم"`       |
+| `id` | BIGINT | معرف المستخدم من تيليغرام — المفتاح الأساسي     |
+| `activated` | BOOLEAN | `1` = مشترك نشط، `0` = منتهي أو غير مشترك     |
+| `subscriptionType` | VARCHAR | نص يصف المدة مثل `"3 أشهر"` أو `"7 يوم"`   |
 | `startDate` | DATE | تاريخ بداية الاشتراك الحالي |
 | `expiryDate` | DATE | تاريخ انتهاء الاشتراك — الأهم في النظام |
 
@@ -261,11 +261,11 @@ DELETE FROM activationcodes WHERE activation_code = ?
 
 | العمود | النوع | الوصف |
 |---|---|---|
-| `id` | INT | مفتاح تلقائي |
-| `chat_id` | BIGINT | معرف المستخدم الذي استخدم الرمز |
-| `activation_code` | VARCHAR | الرمز الذي استُخدم |
-| `activation_date` | DATETIME | وقت الاستخدام بتوقيت الرياض |
-| `duration` | INT | المدة التي كانت في الرمز |
+| `id` |    INT | مفتاح تلقائي |
+| `chat_id` |    BIGINT | معرف المستخدم الذي استخدم الرمز |
+| `activation_code` |   VARCHAR | الرمز الذي استُخدم |
+| `activation_date` |   DATETIME | وقت الاستخدام بتوقيت الرياض |
+| `duration` |    INT | المدة التي كانت في الرمز |
 
 **كيف يكتب فيه البوت:**
 ```js
